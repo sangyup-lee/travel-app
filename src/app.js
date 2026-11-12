@@ -2,7 +2,7 @@ import express from 'express';
 import { fileURLToPath } from 'node:url';
 
 import { planRouter } from './levels/plan.js';
-import { limitPublicApi } from './levels/plan-store.js';
+import { limitPublicApi, sendStoreError } from './levels/plan-store.js';
 import { getPlaces } from './levels/places.js';
 
 export const app = express();
@@ -27,7 +27,7 @@ app.use('/api', (_req, res) => res.status(404).json({ error: 'API 경로를 찾�
 app.use((error, _req, res, next) => {
   if (res.headersSent) return next(error);
   if (error.code === 'STORE_UNAVAILABLE') {
-    return res.status(503).json({ error: '일정 저장소에 연결하지 못했습니다.' });
+    return sendStoreError(res, error);
   }
   console.error('Unhandled application error:', error.name);
   return res.status(500).json({ error: '서버 요청을 처리하지 못했습니다.' });

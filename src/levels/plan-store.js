@@ -5,15 +5,25 @@ const ttl = 3600;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function redisConfig() {
-  const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
-  if (url && token && URL.canParse(url) && new URL(url).protocol === 'https:') return { url, token };
+  const direct = [process.env.UPSTASH_REDIS_REST_URL?.trim(), process.env.UPSTASH_REDIS_REST_TOKEN?.trim()];
+  const linked = [process.env.KV_REST_API_URL?.trim(), process.env.KV_REST_API_TOKEN?.trim()];
+  const [url, token] = direct.some(Boolean) ? direct : linked;
   if (!url && !token && process.env.VERCEL !== '1') return null;
-  throw unavailable();
+  if (!url || !token) throw unavailable('REDIS_ENV_MISSING');
+  if (!URL.canParse(url) || new URL(url).protocol !== 'https:') throw unavailable('REDIS_URL_INVALID');
+  return { url, token };
 }
 
-function unavailable() {
-  return Object.assign(new Error('Shared storage unavailable'), { code: 'STORE_UNAVAILABLE' });
+function unavailable(reason = 'REDIS_REQUEST_FAILED') {
+  return Object.assign(new Error('Shared storage unavailable'), { code: 'STORE_UNAVAILABLE', reason });
+}
+
+export function sendStoreError(res, error) {
+  console.warn('Redis storage error:', error.reason);
+  return res.status(503).json({
+    error: '일정 저장소에 연결하지 못했습니다. (' + error.reason + ')',
+    code: error.reason,
+  });
 }
 
 async function redis(config, command) {
@@ -23,11 +33,15 @@ async function redis(config, command) {
       headers: { Authorization: 'Bearer ' + config.token, 'Content-Type': 'application/json' },
       body: JSON.stringify(command), redirect: 'error', signal: AbortSignal.timeout(4000),
     });
+    if ([401, 403].includes(response.status)) throw unavailable('REDIS_ACCESS_DENIED');
+    if (response.status === 429) throw unavailable('REDIS_QUOTA');
     const data = await response.json();
-    if (!response.ok || data.error || !Object.hasOwn(data, 'result')) throw unavailable();
+    if (/read.?only|NOPERM|WRONGPASS|NOAUTH/i.test(data.error ?? '')) throw unavailable('REDIS_ACCESS_DENIED');
+    if (!response.ok || data.error || !Object.hasOwn(data, 'result')) throw unavailable('REDIS_COMMAND_FAILED');
     return data.result;
-  } catch {
-    throw unavailable();
+  } catch (error) {
+    if (error.code === 'STORE_UNAVAILABLE') throw error;
+    throw unavailable(error.name === 'TimeoutError' ? 'REDIS_TIMEOUT' : 'REDIS_REQUEST_FAILED');
   }
 }
 
@@ -72,7 +86,7 @@ export async function limitPublicApi(req, res, next) {
       return res.status(429).json({ error: '요청이 많습니다. 잠시 후 다시 시도해 주세요.' });
     }
     return next();
-  } catch {
-    return next(unavailable());
+  } catch (error) {
+    return next(error);
   }
 }

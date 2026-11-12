@@ -1,6 +1,6 @@
 import { calculate_budget } from './budget.js';
 import { recommendLodging, researchLodging } from './lodging.js';
-import { loadPlan, savePlan } from './plan-store.js';
+import { loadPlan, savePlan, sendStoreError } from './plan-store.js';
 import express from 'express';
 import { generatePlan } from '../integrations/openai.js';
 
@@ -125,7 +125,7 @@ planRouter.post('/lodging', async (req, res) => {
 });
 
 function respondWithError(res, error) {
-    if (error.code === 'STORE_UNAVAILABLE') return res.status(503).json({ error: '일정 저장소에 연결하지 못했습니다.' });
+    if (error.code === 'STORE_UNAVAILABLE') return sendStoreError(res, error);
     if (error.code === 'OPENAI_CONFIG') {
       return res.status(503).json({ error: '서버의 OpenAI 설정을 확인해 주세요.' });
     }
