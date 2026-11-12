@@ -1,0 +1,11 @@
+.env
+.env.*
+node_modules
+.git
+.vercel
+*.pem
+*.key
+*.pfx
+*.p12
+npm-debug.log*
+22.16.0

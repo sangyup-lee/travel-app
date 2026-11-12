@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>여행결 · 국내 여행 플래너</title>
+<link rel="stylesheet" href="/styles.css">
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<header><div class="shell header"><a class="brand" href="/"><span aria-hidden="true">↗</span> 여행결</a><a href="#results">여행 일정 ↓</a></div></header>
+<main class="shell">
+<section class="hero">
+  <div><p class="eyebrow">국내 여행 플래너</p><h1>이번엔 어디로<br>떠나볼까요?</h1><p>가고 싶은 곳과 취향을 알려주세요.<br>일정과 이동 동선, 예상 비용을 한곳에 담아드려요.</p></div>
+  <div class="hero-art" aria-hidden="true"><i></i><i></i><i></i><span>↗</span></div>
+</section>
+<section class="panel saved-panel" aria-labelledby="saved-title">
+  <h2 id="saved-title">저장한 여행 계획</h2>
+  <p class="hint">이 브라우저에 저장됩니다.</p>
+  <p id="saved-status" role="status"></p>
+  <ul id="saved-list" class="logs"></ul>
+</section>
+<form id="planner" class="panel">
+  <h2>여행 조건</h2>
+  <div class="fields">
+    <label>여행 지역<select name="region"><option>제주</option><option>부산</option><option>강릉</option><option>경주</option></select></label>
+    <label>출발일<input required type="date" name="departure"></label>
+    <label>여행 기간<select name="days"><option value="1">당일치기</option><option value="2" selected>1박 2일</option><option value="3">2박 3일</option></select></label>
+    <label>여행 인원 (명)<input required type="number" name="people" min="1" max="20" value="2"></label>
+    <label>총예산 (원)<input required type="number" name="budget" min="0" max="100000000" value="500000"></label>
+    <label>이동수단<select name="transport"><option>자동차</option><option>대중교통</option><option>도보 위주</option></select></label>
+  </div>
+  <fieldset><legend>여행 취향 <small>여러 개 선택 가능</small></legend><div class="chips">
+    <label><input type="checkbox" name="taste" value="맛집" checked><span>맛집</span></label>
+    <label><input type="checkbox" name="taste" value="관광"><span>관광</span></label>
+    <label><input type="checkbox" name="taste" value="자연" checked><span>자연</span></label>
+    <label><input type="checkbox" name="taste" value="휴식"><span>휴식</span></label>
+    <label><input type="checkbox" name="taste" value="쇼핑"><span>쇼핑</span></label>
+  </div></fieldset>
+  <div class="fields">
+    <label>하루 최대 방문지<input type="number" name="stopsPerDay" min="1" max="6" value="3" required></label>
+    <label>구간별 자동차 이동 제한 (분)<input type="number" name="maxDriveMinutes" min="1" max="300" placeholder="제한 없음"></label>
+    <label><input type="checkbox" name="weatherAware"> 날씨를 일정에 반영</label>
+  </div>
+  <details class="hours-input">
+    <summary>확인한 영업시간 추가</summary>
+    <label>날짜 번호 | 장소명 | 영업시간
+      <textarea name="confirmedHours" rows="2" maxlength="1500" placeholder="1 | 부산박물관 | 09:00-18:00"></textarea>
+    </label>
+    <p class="hint">직접 확인한 시간만 한 줄에 한 장소씩 입력하세요. 날짜 번호는 여행 첫날부터 1, 2, 3입니다.</p>
+  </details>
+  <label>추가 요청<textarea name="notes" rows="2" maxlength="500" placeholder="예: 아침은 여유롭게 출발하고 싶어요."></textarea></label>
+  <button type="submit">AI 일정 만들기 <span aria-hidden="true">↗</span></button>
+<p id="plan-status" role="status"></p><p id="plan-error" role="alert"></p></form>
+<section class="panel place-panel" aria-labelledby="place-title">
+  <h2 id="place-title">장소 검색</h2>
+  <p class="hint">위에서 선택한 여행 지역에서 관광지, 음식점, 카페를 찾아보세요.</p>
+  <form id="place-search">
+    <label>검색어<input type="search" name="keyword" required maxlength="80" placeholder="예: 관광지, 음식점, 카페"></label>
+    <button type="submit">장소 검색</button>
+  </form>
+  <p id="place-status" role="status"></p>
+  <p id="place-error" role="alert"></p>
+  <ul id="place-results" class="place-results"></ul>
+</section>
+<section id="results" aria-labelledby="trip-title">
+  <div class="result-heading"><div><p class="eyebrow">AI 여행 계획</p><h2 id="trip-title">여행 일정</h2><p id="trip-summary" role="status">여행 조건을 입력하고 AI 일정을 만들어 보세요.</p></div></div>
+  <form id="save-plan-form" class="panel saved-panel" hidden>
+    <label>저장 이름<input name="name" maxlength="80" required></label>
+    <button type="submit">여행 계획 저장</button>
+    <button id="export-current-plan" type="button">JSON 내보내기</button>
+    <p id="save-plan-status" role="status"></p>
+  </form>
+  <section id="revision-panel" class="panel" aria-labelledby="revision-title" hidden>
+    <h3 id="revision-title">대화로 일정 수정</h3>
+    <ol id="revision-chat" class="logs" aria-live="polite"></ol>
+    <form id="revision-form">
+      <label>변경 요청<textarea name="request" required maxlength="500" rows="2" placeholder="예: 둘째 날 첫 방문을 오후로 옮겨 줘."></textarea></label>
+      <button type="submit">일정 수정</button>
+      <button type="button" id="undo-revision" disabled>직전 수정 되돌리기</button>
+    </form>
+    <p id="revision-status" role="status"></p>
+    <p id="revision-error" role="alert"></p>
+  </section>
+  <section id="lodging-panel" class="panel" aria-labelledby="lodging-title" hidden>
+    <h3 id="lodging-title">일정 주변 숙소</h3>
+    <button type="button" id="find-lodging">숙소 후보 비교</button>
+    <p id="lodging-status" class="hint" role="status"></p>
+    <ul id="lodging-results" class="logs"></ul>
+  </section>
+  <div class="dashboard" id="trip-dashboard" hidden>
+    <article class="panel"><h3>날짜별 일정</h3><div id="days" class="day-buttons" aria-label="여행 날짜"></div><p id="day-weather" class="hint" hidden></p><ol id="itinerary" class="timeline"></ol></article>
+    <article class="panel"><h3>지도</h3><div id="map" class="dynamic-map" aria-label="선택한 날짜의 네이버 지도" hidden></div><p id="map-status" class="hint" role="status"></p><p id="map-route" class="hint"></p></article>
+    <article class="panel"><h3>예산</h3><p class="hint">제공된 금액을 합산합니다.</p><p id="budget-total" class="total"></p><p id="budget-balance" class="hint"></p><table class="budget-table"><thead><tr><th scope="col">항목</th><th scope="col">금액</th></tr></thead><tbody id="costs"></tbody></table></article>
+    <article class="panel validation-panel">
+      <h3>일정 검증 및 수정 기록</h3>
+      <p id="validation-status" class="hint"></p>
+      <ul id="validation-issues" class="logs"></ul>
+      <details id="validation-revisions" hidden><summary>재계획 이유와 변경 내용</summary><ol id="revision-list" class="logs"></ol></details>
+      <details id="validation-checks" hidden><summary>확인 필요</summary><ul id="check-list" class="logs"></ul></details>
+    </article>
+    <article class="panel"><h3>Agent 실행 기록</h3><ol id="logs" class="logs"></ol><h4 id="source-heading" hidden>웹 출처</h4><ul id="plan-sources"></ul></article>
+  </div>
+</section>
+</main>
+</body>
+</html>
